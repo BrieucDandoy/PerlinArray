@@ -1,0 +1,29 @@
+[package]
+name = "perlin_array"
+version = "0.1.0"
+edition = "2021"
+
+# # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# [lib]
+# name = "perlin_array"
+# crate-type = ["cdylib"]
+
+[dependencies]
+rand = "0.8"  
+image = "0.24"
+numpy = "0.23"
+ndarray = "0.15"
+pyo3 = { version = "0.23.3", features = ["extension-module"] }
+
+[build-dependencies]
+maturin = "0.14"
+
+[package.metadata.pyo3]
+python = "D:\\projet\\perlin_array\\.venv\\Scripts\\python.exe" 
+
+
+[env]
+PYTHON_SYS_EXECUTABLE = "D:\\projet\\perlin_array\\.venv\\Scripts\\python.exe"
+PYO3_PYTHON = "D:\\projet\\perlin_array\\.venv\\Scripts\\python.exe"
+VIRTUAL_ENV = "D:\\projet\\perlin_array\\.venv"
+CARGO_PROFILE_DEV_BUILD_OVERRIDE_DEBUG = true
