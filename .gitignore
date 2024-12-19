@@ -9,6 +9,7 @@ __pycache__/
 *.so
 *.png
 .env
+*.ipynb
 # Distribution / packaging
 .Python
 .venv/
