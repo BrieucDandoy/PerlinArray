@@ -1,8 +1,5 @@
 from perlin_array import get_perlin_numpy
 
-import matplotlib.pyplot as plt
-
-
 class PerlinArray:
     def __init__(self,shape : tuple,grid_size= 10,octaves=5,persistance=0.5,circular : bool = False,circular_axis=None,seed=None):
         width = shape[0]
@@ -28,8 +25,9 @@ class PerlinArray:
             axis=axis,
             seed=seed)
     
-    def imshow(self,*args,**kwargs):
-        return plt.imshow(self.array,*args,**kwargs)
     
 if __name__ == "__main__":
-    array = PerlinArray((512,512))
+    array = PerlinArray((1024,1024),grid_size=10)
+    import matplotlib.pyplot as plt
+    plt.imshow(array.array,cmap='gray') 
+    plt.show()

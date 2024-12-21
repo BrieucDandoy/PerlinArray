@@ -8,6 +8,11 @@ edition = "2021"
 # name = "perlin_array"
 # crate-type = ["cdylib"]
 
+# [[bin]]
+# name = "my_binary_name"
+# path = "src/lib.rs"
+
+
 [dependencies]
 rand = "0.8"  
 image = "0.24"
@@ -22,8 +27,8 @@ maturin = "0.14"
 python = "D:\\projet\\perlin_array\\.venv\\Scripts\\python.exe" 
 
 
-[env]
-PYTHON_SYS_EXECUTABLE = "D:\\projet\\perlin_array\\.venv\\Scripts\\python.exe"
-PYO3_PYTHON = "D:\\projet\\perlin_array\\.venv\\Scripts\\python.exe"
-VIRTUAL_ENV = "D:\\projet\\perlin_array\\.venv"
-CARGO_PROFILE_DEV_BUILD_OVERRIDE_DEBUG = true
+# [env]
+# PYTHON_SYS_EXECUTABLE = "D:\\projet\\perlin_array\\.venv\\Scripts\\python.exe"
+# PYO3_PYTHON = "D:\\projet\\perlin_array\\.venv\\Scripts\\python.exe"
+# VIRTUAL_ENV = "D:\\projet\\perlin_array\\.venv"
+# CARGO_PROFILE_DEV_BUILD_OVERRIDE_DEBUG = true

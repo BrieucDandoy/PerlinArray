@@ -115,11 +115,11 @@ fn dot_product(gradient: (f32,f32), x: f32, y: f32) -> f32 {
     gradient.0 * x + gradient.1 * y
 }
 
-fn perlin_noise(grid: &Vec<Vec<(f32,f32)>>, x: f32, y: f32, grid_size: usize) -> f32 {
-    let x0: usize = x.floor() as usize % grid_size;
-    let y0: usize = y.floor() as usize % grid_size;
-    let x1: usize = (x0 + 1) % grid_size;
-    let y1: usize = (y0 + 1) % grid_size;
+fn perlin_noise(grid: &Vec<Vec<(f32,f32)>>, x: f32, y: f32) -> f32 {
+    let x0: usize = x.floor() as usize;
+    let y0: usize = y.floor() as usize;
+    let x1: usize = x0 + 1;
+    let y1: usize = y0 + 1;
 
     let dx: f32 = x - x.floor();
     let dy: f32 = y - y.floor();
@@ -143,38 +143,27 @@ fn perlin_noise(grid: &Vec<Vec<(f32,f32)>>, x: f32, y: f32, grid_size: usize) ->
     lerp_x0 + v * (lerp_x1 - lerp_x0)
 }
 
-fn perlin_noise_with_octaves(grid: &Vec<Vec<(f32,f32)>>, x: f32, y: f32, octaves: usize, persistence: f32, grid_size: usize) -> f32 {
+fn perlin_noise_with_octaves(grids : &Vec<Vec<Vec<(f32,f32)>>>,x: f32, y: f32, octaves: usize, persistence: f32,seed : Option<u32> ) -> f32 {
     let mut total: f32 = 0.0;
     let mut frequency: f32 = 1.0;
     let mut amplitude: f32 = 1.0;
-    for _ in 0..octaves {
-        total += perlin_noise(grid, x*frequency, y*frequency , grid_size) * amplitude;
+    for grid in grids.iter() {
+        total += perlin_noise(grid, x*frequency, y*frequency) * amplitude;
         frequency *= 2.0;
         amplitude *= persistence;
-    }
 
+    }
     total
 }
 
-// pub fn save_vec_as_image(data: Vec<Vec<f32>>, path: &str) -> Result<(), Box<dyn std::error::Error>> {
-//     // Get the dimensions of the image
-//     let height: usize = data.len();
-//     let width: usize = if height > 0 { data[0].len() } else { 0 };
-//     // Flatten the 2D Vec into a 1D Vec
-//     let flat_data: Vec<f32> = data.into_iter().flatten().collect();
-
-//     // Create a GrayImage (grayscale) from the buffer
-//     let img = GrayImage::from_raw(width as u32, height as u32, flat_data)
-//         .ok_or("Failed to create image from raw data")?;
-
-//     // Save the image to the specified path
-//     img.save(path)?;
-
-//     Ok(())
-// }
 
 pub fn get_perlin_array(grid_size: usize, width: u32, height: u32, octaves: usize, persistence: f32,circular : bool,axis : &str,seed : Option<u32>) -> Vec<Vec<f32>> {
-    let grid: Vec<Vec<(f32,f32)>> = get_gradient_grid( grid_size, seed,circular,axis);
+    let mut new_grid_size: usize = grid_size;
+    let mut grids : Vec<Vec<Vec<(f32,f32)>>> = Vec::new();
+    for idx in 0..octaves {
+        let new_grid_size: usize = (grid_size as u64 * 2_u64.pow(idx as u32)) as usize;
+        grids.push(get_gradient_grid(new_grid_size, seed, circular, axis));
+    }
     // Create the gradient grid
     let mut img: Vec<Vec<f32>> = Vec::with_capacity(height as usize);
 
@@ -186,12 +175,12 @@ pub fn get_perlin_array(grid_size: usize, width: u32, height: u32, octaves: usiz
             let py: f32 = y as f32;
 
             let noise_value: f32 = perlin_noise_with_octaves(
-                &grid,
+                &grids,
                 px / width as f32 * grid_size as f32, // Scale the x coordinate to the grid size
                 py / height as f32 * grid_size as f32, // Scale the y coordinate to the grid size
                 octaves,
                 persistence,
-                grid_size
+                seed,
             );
             // Normalize the noise from -1-1 to 0-255 for image pixels
             row.push(noise_value);
@@ -269,14 +258,5 @@ fn perlin_array(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 
 
-// // use perlin_array::save_vec_as_image;
-// use perlin_array::get_perlin_array;
 
-// fn main() -> Result<(), Box<dyn std::error::Error>>{
-//     // Example: generate an image with Perlin noise
-//     let perlin_array : Vec<Vec<f32>> = get_perlin_array(8, 512, 512, 6, 0.5,true,"both",Some(42));
-//     println!("{}",perlin_array[0][0]);
-//     // let _ = save_vec_as_image(perlin_array,"test422.png");
-//     Ok(())
-// }
 
