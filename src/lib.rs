@@ -1,32 +1,22 @@
-extern crate image;
-
-use image::GrayImage;
+use numpy::ndarray::Array3;
 use numpy::ndarray::{Array2, Dim};
 use numpy::{IntoPyArray, PyArray, PyArray2, ToPyArray};
 use pyo3::prelude::*;
+use pyo3::prelude::*;
+use pyo3::types::PyList;
+use pyo3::types::PyTuple;
 use pyo3::wrap_pyfunction;
 use pyo3::Python;
 use rand::prelude::*;
 
-#[derive(Clone)]
-struct PerlinArray {
-    array: Vec<Vec<f32>>,
-    grid: Vec<Vec<Gradient>>,
-}
-
-#[derive(Clone, Copy)]
-struct Gradient {
-    x: f32,
-    y: f32,
-}
 
 fn gradient_grid_set_edges(
-    mut grid: Vec<Vec<Gradient>>,
-    fixed_gradients_top: Option<Vec<Gradient>>,
-    fixed_gradients_bot: Option<Vec<Gradient>>,
-    fixed_gradients_right: Option<Vec<Gradient>>,
-    fixed_gradients_left: Option<Vec<Gradient>>,
-) -> Vec<Vec<Gradient>> {
+    mut grid: Vec<Vec<(f32,f32)>>,
+    fixed_gradients_top: Option<Vec<(f32,f32)>>,
+    fixed_gradients_bot: Option<Vec<(f32,f32)>>,
+    fixed_gradients_right: Option<Vec<(f32,f32)>>,
+    fixed_gradients_left: Option<Vec<(f32,f32)>>,
+) -> Vec<Vec<(f32,f32)>> {
     let grid_size: usize = grid.len();
 
     if let Some(fixed_gradients_top) = fixed_gradients_top {
@@ -55,7 +45,7 @@ fn gradient_grid_set_edges(
 fn generate_circular_gradient_grid(
     grid_size: usize,
     axis: &str,
-    seed: Option<u32>,
+    seed: u32,
 ) -> Vec<Vec<(f32, f32)>> {
     let mut grid: Vec<Vec<(f32, f32)>> = generate_random_gradient_grid(grid_size, seed);
     match axis {
@@ -82,18 +72,14 @@ fn generate_circular_gradient_grid(
     grid
 }
 
-fn generate_random_gradient_grid(grid_size: usize, seed: Option<u32>) -> Vec<Vec<(f32, f32)>> {
-    let mut rng: StdRng = StdRng::seed_from_u64(rand::random());
-    if let Some(set_seed) = seed {
-        let new_seed: u64 = set_seed as u64;
-        rng = StdRng::seed_from_u64(new_seed);
-    }
+fn generate_random_gradient_grid(grid_size: usize, seed: u32) -> Vec<Vec<(f32, f32)>> {
+    let mut rng: StdRng = StdRng::seed_from_u64((seed as u64));
 
     let mut grid: Vec<Vec<(f32, f32)>> = Vec::with_capacity(grid_size + 1);
     for _ in 0..=grid_size {
         let mut row: Vec<(f32, f32)> = Vec::with_capacity(grid_size + 1);
         for _ in 0..=grid_size {
-            let angle: f32 = rng.gen::<f32>() * std::f32::consts::TAU; // Random angle
+            let angle: f32 = rng.gen::<f32>() * std::f32::consts::TAU;
             row.push((angle.cos(), angle.sin()));
         }
         grid.push(row);
@@ -142,17 +128,13 @@ fn perlin_noise_with_octaves(
     grids: &Vec<Vec<Vec<(f32, f32)>>>,
     x: f32,
     y: f32,
-    octaves: usize,
-    persistence: f32,
-    seed: Option<u32>,
+    octaves: &Vec<f64>,
 ) -> f32 {
     let mut total: f32 = 0.0;
     let mut frequency: f32 = 1.0;
-    let mut amplitude: f32 = 1.0;
-    for grid in grids.iter() {
-        total += perlin_noise(grid, x * frequency, y * frequency) * amplitude;
+    for (grid, amplitude) in grids.iter().zip(octaves.iter()) {
+        total += perlin_noise(grid, x * frequency, y * frequency) * (*amplitude as f32);
         frequency *= 2.0;
-        amplitude *= persistence;
     }
     total
 }
@@ -160,7 +142,7 @@ fn perlin_noise_with_octaves(
 pub fn create_grids(
     octaves: usize,
     grid_size: usize,
-    seed: Option<u32>,
+    seed: u32,
     circular: bool,
     axis: &str,
 ) -> Vec<Vec<Vec<(f32, f32)>>> {
@@ -177,17 +159,16 @@ pub fn get_perlin_array(
     grid_size: usize,
     width: u32,
     height: u32,
-    octaves: usize,
-    persistence: f32,
+    octaves: Vec<f64>,
     circular: bool,
     axis: &str,
-    seed: Option<u32>,
+    seed: u32,
 ) -> Vec<Vec<f32>> {
     let grids: Vec<Vec<Vec<(f32, f32)>>> = match grids {
         Some(existing_grids) => existing_grids.clone(),
         None => {
             let grids: Vec<Vec<Vec<(f32, f32)>>> =
-                create_grids(octaves, grid_size, seed, circular, axis);
+                create_grids(octaves.len(), grid_size, seed, circular, axis);
             grids
         }
     };
@@ -203,9 +184,7 @@ pub fn get_perlin_array(
                 &grids,
                 px / width as f32 * grid_size as f32,
                 py / height as f32 * grid_size as f32,
-                octaves,
-                persistence,
-                seed,
+                &octaves,
             );
             row.push(noise_value);
         }
@@ -216,7 +195,7 @@ pub fn get_perlin_array(
 
 fn get_gradient_grid(
     grid_size: usize,
-    seed: Option<u32>,
+    seed: u32,
     circular: bool,
     axis: &str,
 ) -> Vec<Vec<(f32, f32)>> {
@@ -228,33 +207,24 @@ fn get_gradient_grid(
 }
 
 #[pyfunction]
-#[pyo3(signature = (grid_size, width, height, octaves, persistence, circular, axis, seed=None))]
+#[pyo3(signature = (grid_size, width, height, octaves, circular, axis, seed))]
 fn get_perlin_numpy(
     py: Python,
     grid_size: usize,
     width: u32,
     height: u32,
-    octaves: usize,
-    persistence: f32,
+    octaves: Py<PyList>,
     circular: bool,
     axis: &str,
-    seed: Option<u32>,
+    seed: u32,
 ) -> PyResult<Py<PyArray2<f32>>> {
+    let octaves: Vec<f64> = octaves.extract(py)?;
     let array: Vec<Vec<f32>> = get_perlin_array(
-        &None,
-        grid_size,
-        width,
-        height,
-        octaves,
-        persistence,
-        circular,
-        axis,
-        seed,
+        &None, grid_size, width, height, octaves, circular, axis, seed,
     );
     convert_vec_to_numpy(py, array)
 }
 
-#[pyfunction]
 fn convert_gradient_to_numpy(
     py: Python,
     input: Vec<Vec<(f32, f32)>>,
@@ -262,12 +232,11 @@ fn convert_gradient_to_numpy(
     // Separate the input Vec<Vec<(f32, f32)>> into two flattened Vec<f32>
     let (x_vals, y_vals): (Vec<f32>, Vec<f32>) = input
         .iter()
-        .flat_map(|row| row.iter().map(|&(x, y)| (x, y)))
+        .flat_map(|row: &Vec<(f32, f32)>| row.iter().map(|&(x, y)| (x, y)))
         .unzip();
 
-    // Compute the shape of the resulting 2D arrays
-    let rows = input.len();
-    let cols = if rows > 0 { input[0].len() } else { 0 };
+    let rows: usize = input.len();
+    let cols: usize = if rows > 0 { input[0].len() } else { 0 };
 
     // Convert the flattened x_vals into a 2D ndarray
     let x_array2: Array2<f32> =
@@ -314,5 +283,36 @@ fn convert_vec_to_numpy(py: Python, input: Vec<Vec<f32>>) -> PyResult<Py<PyArray
 
 #[pymodule]
 fn perlin_array(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(get_perlin_numpy, m)?)
+    m.add_function(wrap_pyfunction!(get_perlin_numpy, m)?);
+    m.add_function(wrap_pyfunction!(get_perlin_grid_numpy,m)?);
+    Ok(())
+}
+
+#[pyfunction]
+fn get_perlin_grid_numpy(
+    py: Python,
+    grid_size: usize,
+    octaves: usize,
+    seed: u32,
+    circular: bool,
+    axis: &str,
+) -> PyResult<Py<PyList>> {
+    
+    // Create the grids using your custom function
+    let grids: Vec<Vec<Vec<(f32, f32)>>> = create_grids(octaves, grid_size, seed, circular, axis);
+
+    // Prepare a vector to store the numpy arrays
+    let mut numpy_grids: Vec<(Py<PyArray2<f32>>, Py<PyArray2<f32>>)> = Vec::new();
+
+    // Iterate through the grids and convert them to numpy arrays
+    for grid in grids.iter() {
+        // Ensure `convert_gradient_to_numpy` returns a result and handle errors
+        numpy_grids.push(convert_gradient_to_numpy(py, grid.clone())?);
+    }
+
+    // Create a Python list from the numpy arrays
+    let grids_list: Bound<'_, PyList> = PyList::new(py, numpy_grids)?;    
+    // Return the Python list wrapped in Py
+    Ok(grids_list.unbind())
+
 }

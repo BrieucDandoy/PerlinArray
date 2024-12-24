@@ -15,7 +15,6 @@ edition = "2021"
 
 [dependencies]
 rand = "0.8"  
-image = "0.24"
 numpy = "0.23"
 ndarray = "0.15"
 pyo3 = { version = "0.23.3", features = ["extension-module"] }
