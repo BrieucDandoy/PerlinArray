@@ -1,4 +1,8 @@
-from perlin_array import get_perlin_numpy, get_perlin_grid_numpy
+from perlin_array import (
+    get_perlin_numpy,
+    get_perlin_grid_numpy,
+    get_perlin_from_grid_numpy,
+)
 import numpy as np
 from functools import lru_cache
 import random
@@ -71,6 +75,25 @@ class PerlinArray:
 
 
 if __name__ == "__main__":
-    ar1 = PerlinArray((1024, 1024), grid_size=10, octaves=[1, 0.75, 0.5, 0.25])
-    for grid in ar1.grid:
-        print(grid[1].shape)
+    ar1 = PerlinArray(
+        (512, 512),
+        grid_size=10,
+        octaves=[1, 0.75, 0.5, 0.25],
+        seed=42,
+        circular_axis=[0, 1],
+    )
+    grid = ar1.grid
+    # array = ar1.array
+    import matplotlib.pyplot as plt
+
+    grid2 = [(item1.T, item2.T) for item1, item2 in grid]
+    array = get_perlin_from_grid_numpy(
+        grid, [1, 0.75, 0.5, 0.25], 42, False, "both", 512, 512
+    )
+    print(array.shape)
+    print(ar1.array.shape)
+    ar3 = array - ar1.array
+    print(ar3.max())
+    print(ar3.min())
+    # plt.imshow(ar3, cmap="gray")
+    # plt.show()

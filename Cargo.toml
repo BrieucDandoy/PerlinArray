@@ -24,10 +24,3 @@ maturin = "0.14"
 
 [package.metadata.pyo3]
 python = "D:\\projet\\perlin_array\\.venv\\Scripts\\python.exe" 
-
-
-# [env]
-# PYTHON_SYS_EXECUTABLE = "D:\\projet\\perlin_array\\.venv\\Scripts\\python.exe"
-# PYO3_PYTHON = "D:\\projet\\perlin_array\\.venv\\Scripts\\python.exe"
-# VIRTUAL_ENV = "D:\\projet\\perlin_array\\.venv"
-# CARGO_PROFILE_DEV_BUILD_OVERRIDE_DEBUG = true

@@ -1,5 +1,8 @@
+use std::vec;
+
 use numpy::ndarray::Array3;
 use numpy::ndarray::{Array2, Dim};
+use numpy::PyArrayMethods;
 use numpy::{IntoPyArray, PyArray, PyArray2, ToPyArray};
 use pyo3::prelude::*;
 use pyo3::prelude::*;
@@ -8,15 +11,15 @@ use pyo3::types::PyTuple;
 use pyo3::wrap_pyfunction;
 use pyo3::Python;
 use rand::prelude::*;
-
+use std::borrow::Borrow;
 
 fn gradient_grid_set_edges(
-    mut grid: Vec<Vec<(f32,f32)>>,
-    fixed_gradients_top: Option<Vec<(f32,f32)>>,
-    fixed_gradients_bot: Option<Vec<(f32,f32)>>,
-    fixed_gradients_right: Option<Vec<(f32,f32)>>,
-    fixed_gradients_left: Option<Vec<(f32,f32)>>,
-) -> Vec<Vec<(f32,f32)>> {
+    mut grid: Vec<Vec<(f32, f32)>>,
+    fixed_gradients_top: Option<Vec<(f32, f32)>>,
+    fixed_gradients_bot: Option<Vec<(f32, f32)>>,
+    fixed_gradients_right: Option<Vec<(f32, f32)>>,
+    fixed_gradients_left: Option<Vec<(f32, f32)>>,
+) -> Vec<Vec<(f32, f32)>> {
     let grid_size: usize = grid.len();
 
     if let Some(fixed_gradients_top) = fixed_gradients_top {
@@ -164,7 +167,7 @@ pub fn get_perlin_array(
     axis: &str,
     seed: u32,
 ) -> Vec<Vec<f32>> {
-    let grids: Vec<Vec<Vec<(f32, f32)>>> = match grids {
+    let used_grids: Vec<Vec<Vec<(f32, f32)>>> = match grids {
         Some(existing_grids) => existing_grids.clone(),
         None => {
             let grids: Vec<Vec<Vec<(f32, f32)>>> =
@@ -172,6 +175,21 @@ pub fn get_perlin_array(
             grids
         }
     };
+    let grid_size : usize = used_grids[0].len() - 1;
+    println!("octaves : ");
+    for oct in octaves.iter() {
+        println!("|{}|",oct);
+    }
+    println!("grid size : {}",grid_size);
+    print!("axis : {}",axis);
+    println!("seed : {}",seed);
+    // println!(
+    //     "- Grid len : {}\n- First grid length: {}\n- tuple idx x value : {}\n- tuple idx y value : {}",
+    //     used_grids[1].len(),
+    //     used_grids[1][1].len(),
+    //     used_grids[1][1][1].0,
+    //     used_grids[1][1][1].1,
+    // );
 
     let mut img: Vec<Vec<f32>> = Vec::with_capacity(height as usize);
 
@@ -181,7 +199,7 @@ pub fn get_perlin_array(
             let px: f32 = x as f32;
             let py: f32 = y as f32;
             let noise_value: f32 = perlin_noise_with_octaves(
-                &grids,
+                &used_grids,
                 px / width as f32 * grid_size as f32,
                 py / height as f32 * grid_size as f32,
                 &octaves,
@@ -266,7 +284,6 @@ fn convert_gradient_to_numpy(
     ))
 }
 
-#[pyfunction]
 fn convert_vec_to_numpy(py: Python, input: Vec<Vec<f32>>) -> PyResult<Py<PyArray2<f32>>> {
     let array2: Array2<f32> = Array2::from_shape_vec((input.len(), input[0].len()), input.concat())
         .map_err(|e: numpy::ndarray::ShapeError| {
@@ -284,7 +301,8 @@ fn convert_vec_to_numpy(py: Python, input: Vec<Vec<f32>>) -> PyResult<Py<PyArray
 #[pymodule]
 fn perlin_array(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_perlin_numpy, m)?);
-    m.add_function(wrap_pyfunction!(get_perlin_grid_numpy,m)?);
+    m.add_function(wrap_pyfunction!(get_perlin_grid_numpy, m)?);
+    m.add_function(wrap_pyfunction!(get_perlin_from_grid_numpy, m)?);
     Ok(())
 }
 
@@ -297,22 +315,78 @@ fn get_perlin_grid_numpy(
     circular: bool,
     axis: &str,
 ) -> PyResult<Py<PyList>> {
-    
-    // Create the grids using your custom function
     let grids: Vec<Vec<Vec<(f32, f32)>>> = create_grids(octaves, grid_size, seed, circular, axis);
-
-    // Prepare a vector to store the numpy arrays
     let mut numpy_grids: Vec<(Py<PyArray2<f32>>, Py<PyArray2<f32>>)> = Vec::new();
-
-    // Iterate through the grids and convert them to numpy arrays
     for grid in grids.iter() {
-        // Ensure `convert_gradient_to_numpy` returns a result and handle errors
         numpy_grids.push(convert_gradient_to_numpy(py, grid.clone())?);
     }
 
-    // Create a Python list from the numpy arrays
-    let grids_list: Bound<'_, PyList> = PyList::new(py, numpy_grids)?;    
-    // Return the Python list wrapped in Py
+    let grids_list: Bound<'_, PyList> = PyList::new(py, numpy_grids)?;
     Ok(grids_list.unbind())
+}
 
+#[pyfunction]
+fn get_perlin_from_grid_numpy(
+    py: Python,
+    grid: Py<PyList>,
+    octaves: Py<PyList>,
+    seed: u32,
+    circular: bool,
+    axis: &str,
+    width: u32,
+    height: u32,
+) -> PyResult<Py<PyArray2<f32>>> {
+    let octaves: Vec<f64> = octaves.extract(py)?;
+    let grids: Vec<Vec<Vec<(f32, f32)>>> = convert_numpy_to_vec(py, grid)?;
+    let length_grids: usize = grids.len();
+    // println!(
+        // "- Grid len : {}\n- First grid length: {}\n - tuple idx 0 value : {}",
+        // grids[0].len(),
+        // grids[0][0].len(),
+        // grids[0][0][0].0
+    // );
+
+    let array: Vec<Vec<f32>> = get_perlin_array(
+        &Some(grids),
+        length_grids,
+        width,
+        height,
+        octaves,
+        circular,
+        axis,
+        seed,
+    );
+    convert_vec_to_numpy(py, array)
+}
+
+fn convert_numpy_to_vec(py: Python, pylist: Py<PyList>) -> PyResult<Vec<Vec<Vec<(f32, f32)>>>> {
+    let mut result: Vec<Vec<Vec<(f32, f32)>>> = Vec::new();
+    for item in pylist.into_bound(py).iter() {
+        let tuple: &Bound<'_, PyTuple> = item.downcast::<PyTuple>()?;
+        let array1: numpy::ndarray::ArrayBase<numpy::ndarray::OwnedRepr<f32>, Dim<[usize; 2]>> =
+            tuple
+                .get_item(0)?
+                .downcast::<PyArray2<f32>>()?
+                .to_owned_array();
+        let array2: numpy::ndarray::ArrayBase<numpy::ndarray::OwnedRepr<f32>, Dim<[usize; 2]>> =
+            tuple
+                .get_item(1)?
+                .downcast::<PyArray2<f32>>()?
+                .to_owned_array();
+
+        let paired_data: Vec<Vec<(f32, f32)>> = array1
+            .outer_iter()
+            .zip(array2.outer_iter())
+            .map(|(row1, row2)| {
+                row1.iter()
+                    .zip(row2.iter())
+                    .map(|(&v1, &v2)| (v1, v2))
+                    .collect::<Vec<(f32, f32)>>()
+            })
+            .collect();
+
+        result.push(paired_data);
+    }
+
+    Ok(result)
 }
