@@ -1,17 +1,12 @@
-use std::vec;
-
-use numpy::ndarray::Array3;
 use numpy::ndarray::{Array2, Dim};
 use numpy::PyArrayMethods;
-use numpy::{IntoPyArray, PyArray, PyArray2, ToPyArray};
-use pyo3::prelude::*;
+use numpy::{IntoPyArray, PyArray, PyArray2};
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use pyo3::types::PyTuple;
 use pyo3::wrap_pyfunction;
 use pyo3::Python;
 use rand::prelude::*;
-use std::borrow::Borrow;
 
 fn gradient_grid_set_edges(
     mut grid: Vec<Vec<(f32, f32)>>,
@@ -76,7 +71,7 @@ fn generate_circular_gradient_grid(
 }
 
 fn generate_random_gradient_grid(grid_size: usize, seed: u32) -> Vec<Vec<(f32, f32)>> {
-    let mut rng: StdRng = StdRng::seed_from_u64((seed as u64));
+    let mut rng: StdRng = StdRng::seed_from_u64(seed as u64);
 
     let mut grid: Vec<Vec<(f32, f32)>> = Vec::with_capacity(grid_size + 1);
     for _ in 0..=grid_size {
@@ -176,21 +171,6 @@ pub fn get_perlin_array(
         }
     };
     let grid_size : usize = used_grids[0].len() - 1;
-    println!("octaves : ");
-    for oct in octaves.iter() {
-        println!("|{}|",oct);
-    }
-    println!("grid size : {}",grid_size);
-    print!("axis : {}",axis);
-    println!("seed : {}",seed);
-    // println!(
-    //     "- Grid len : {}\n- First grid length: {}\n- tuple idx x value : {}\n- tuple idx y value : {}",
-    //     used_grids[1].len(),
-    //     used_grids[1][1].len(),
-    //     used_grids[1][1][1].0,
-    //     used_grids[1][1][1].1,
-    // );
-
     let mut img: Vec<Vec<f32>> = Vec::with_capacity(height as usize);
 
     for x in 0..width {
@@ -300,9 +280,9 @@ fn convert_vec_to_numpy(py: Python, input: Vec<Vec<f32>>) -> PyResult<Py<PyArray
 
 #[pymodule]
 fn perlin_array(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(get_perlin_numpy, m)?);
-    m.add_function(wrap_pyfunction!(get_perlin_grid_numpy, m)?);
-    m.add_function(wrap_pyfunction!(get_perlin_from_grid_numpy, m)?);
+    let _ = m.add_function(wrap_pyfunction!(get_perlin_numpy, m)?);
+    let _ = m.add_function(wrap_pyfunction!(get_perlin_grid_numpy, m)?);
+    let _ = m.add_function(wrap_pyfunction!(get_perlin_from_grid_numpy, m)?); 
     Ok(())
 }
 
