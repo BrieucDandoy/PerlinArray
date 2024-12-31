@@ -126,10 +126,16 @@ class PerlinArray:
         new_shape = (self.width, self.height)
         if seed is None:
             seed = random.randint(0, 1147483647)
-
         if direction not in ["left", "right", "top", "bottom"]:
             raise ValueError("Invalid direction")
-        new_grids = self._get_grid()
+        new_grids = get_perlin_grid_numpy(
+            self.grid_size,
+            len(self.octaves),
+            seed,
+            self.circular,
+            self.axis,
+        )
+
         for (grid_x, grid_y), (new_grid_x, new_grid_y) in zip(self.grid, new_grids):
             match direction:
                 case "left":
@@ -147,6 +153,7 @@ class PerlinArray:
                         raise ValueError("Invalid shape")
                     new_grid_x[:, -1] = grid_x[:, 0]
                     new_grid_y[:, -1] = grid_y[:, 0]
+                    assert new_grid_x[:, -1] == grid_x[:, 0]
                 case "bottom":
                     if new_shape[0] != self.width:
                         raise ValueError("Invalid shape")
@@ -154,10 +161,11 @@ class PerlinArray:
                     new_grid_y[:, 0] = grid_y[:, -1]
                 case _:
                     pass
+
         new_array = self._perlin_from_grid_numpy(
             new_grids,
             self.octaves,
-            seed,
+            self.seed,
             self.circular,
             self.axis,
             self.width,
@@ -167,13 +175,13 @@ class PerlinArray:
             return new_array, new_grids
 
         match direction:
-            case "right":
-                merged_array = np.hstack((self.array, new_array))
             case "left":
+                merged_array = np.hstack((self.array, new_array))
+            case "right":
                 merged_array = np.hstack((new_array, self.array))
-            case "top":
-                merged_array = np.vstack((new_array, self.array))
             case "bottom":
+                merged_array = np.vstack((new_array, self.array))
+            case "top":
                 merged_array = np.vstack((self.array, new_array))
         if output == "inplace":
             self.arary = merged_array
@@ -211,12 +219,11 @@ if __name__ == "__main__":
         octaves=[1, 0.75, 0.5, 0.25],
         seed=42,
         circular_axis=[0, 1],
-        circular=True,
+        circular=False,
     )
-    a = ar1.array
-    new_array, new_grids = ar1.expend(
-        output="merged",
-        direction="top",
-    )
-    plt.imshow(new_array, cmap="gray")
-    plt.show()
+    c, grid = ar1.expend(seed=54, output="new", direction="top")
+    print(grid[0][0])
+    print("-" * 100)
+    print(ar1.grid[0][0])
+    # plt.imshow(c, cmap="gray")
+    # plt.show()

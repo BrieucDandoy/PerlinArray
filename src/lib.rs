@@ -49,20 +49,20 @@ fn generate_circular_gradient_grid(
     match axis {
         "horizontal" => {
             for y in 0..grid_size {
-                grid[y][0] = grid[y][grid_size - 1];
+                grid[y][0] = grid[y][grid_size];
             }
         }
         "vertical" => {
             for x in 0..grid_size {
-                grid[0][x] = grid[grid_size - 1][x];
+                grid[0][x] = grid[grid_size][x];
             }
         }
         "both" => {
             for y in 0..grid_size {
-                grid[y][0] = grid[y][grid_size - 1];
+                grid[y][0] = grid[y][grid_size];
             }
             for x in 0..grid_size {
-                grid[0][x] = grid[grid_size - 1][x];
+                grid[0][x] = grid[grid_size][x];
             }
         }
         _ => {}
@@ -227,7 +227,6 @@ fn convert_gradient_to_numpy(
     py: Python,
     input: Vec<Vec<(f32, f32)>>,
 ) -> PyResult<(Py<PyArray2<f32>>, Py<PyArray2<f32>>)> {
-    // Separate the input Vec<Vec<(f32, f32)>> into two flattened Vec<f32>
     let (x_vals, y_vals): (Vec<f32>, Vec<f32>) = input
         .iter()
         .flat_map(|row: &Vec<(f32, f32)>| row.iter().map(|&(x, y)| (x, y)))
@@ -236,7 +235,6 @@ fn convert_gradient_to_numpy(
     let rows: usize = input.len();
     let cols: usize = if rows > 0 { input[0].len() } else { 0 };
 
-    // Convert the flattened x_vals into a 2D ndarray
     let x_array2: Array2<f32> =
         Array2::from_shape_vec((rows, cols), x_vals).map_err(|e: numpy::ndarray::ShapeError| {
             PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
@@ -245,7 +243,6 @@ fn convert_gradient_to_numpy(
             ))
         })?;
 
-    // Convert the flattened y_vals into a 2D ndarray
     let y_array2: Array2<f32> =
         Array2::from_shape_vec((rows, cols), y_vals).map_err(|e: numpy::ndarray::ShapeError| {
             PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
@@ -254,7 +251,6 @@ fn convert_gradient_to_numpy(
             ))
         })?;
 
-    // Convert the ndarrays to NumPy arrays
     let x_numpy_array: Bound<'_, PyArray<f32, Dim<[usize; 2]>>> = x_array2.into_pyarray(py);
     let y_numpy_array: Bound<'_, PyArray<f32, Dim<[usize; 2]>>> = y_array2.into_pyarray(py);
 
