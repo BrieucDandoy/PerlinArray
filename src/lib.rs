@@ -315,12 +315,6 @@ fn get_perlin_from_grid_numpy(
     let octaves: Vec<f64> = octaves.extract(py)?;
     let grids: Vec<Vec<Vec<(f32, f32)>>> = convert_numpy_to_vec(py, grid)?;
     let length_grids: usize = grids.len();
-    // println!(
-        // "- Grid len : {}\n- First grid length: {}\n - tuple idx 0 value : {}",
-        // grids[0].len(),
-        // grids[0][0].len(),
-        // grids[0][0][0].0
-    // );
 
     let array: Vec<Vec<f32>> = get_perlin_array(
         &Some(grids),
